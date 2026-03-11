@@ -112,7 +112,7 @@ The system continuously monitors production data and maintains **model reliabili
 
 # Project Folder Structure
 
-
+```bash
 Self-Healing-ML-Pipeline-System
 │
 ├── src
@@ -153,7 +153,7 @@ Self-Healing-ML-Pipeline-System
 ├── test_drift_data_maker.py
 ├── requirements.txt
 └── README.md
-
+'''
 
 The project follows a **modular ML engineering architecture** separating pipelines, components, monitoring, and UI.
 
@@ -238,19 +238,17 @@ Track model versions, timestamps, and retraining history.
 
 ## 1 Install Dependencies
 
-
+```bash
 pip install -r requirements.txt
-
-
 ---
+
 
 ## 2 Generate Production Data Batches
 
 Run the batch generator script:
-
-
+```bash
 python test_drift_data_maker.py
-
+```
 
 This splits the dataset into simulated production batches inside:
 
@@ -262,28 +260,21 @@ data/production_batches
 
 ## 3 Train Initial Model
 
-
+```bash
 python -m src.pipelines.training_pipeline
-
-
 ---
 
 ## 4 Launch Monitoring Dashboard
 
-
+```bash
 streamlit run ui/app.py
-
-
 ---
 
 ## 5 Trigger Monitoring
 
 Inside the dashboard:
-
-
+```bash
 Monitoring Page → Run Monitoring Pipeline
-
-
 ---
 
 # Challenges Faced
@@ -321,7 +312,7 @@ Solution:
 ---
 
 # Technologies Used
-
+```bash
 | Category | Technology |
 |--------|-------------|
 | Language | Python |
@@ -331,7 +322,6 @@ Solution:
 | Dashboard | Streamlit |
 | Data Processing | Pandas |
 | Model Versioning | Custom Model Registry |
-
 ---
 
 # Future Improvements
