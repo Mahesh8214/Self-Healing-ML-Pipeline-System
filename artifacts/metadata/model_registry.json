@@ -1,5 +1,5 @@
 {
-    "latest_model": "artifacts/models/model_v32.pkl",
+    "latest_model": "artifacts/models/model_v33.pkl",
     "versions": [
         {
             "version": "v1",
@@ -162,6 +162,12 @@
             "version": "v32",
             "model_path": "artifacts/models/model_v32.pkl",
             "timestamp": "2026-03-11 15:51:31.398275",
+            "reason": "performance_degradation_after_drift"
+        },
+        {
+            "version": "v33",
+            "model_path": "artifacts/models/model_v33.pkl",
+            "timestamp": "2026-03-11 16:13:40.741514",
             "reason": "performance_degradation_after_drift"
         }
     ]
