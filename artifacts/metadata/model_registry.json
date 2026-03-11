@@ -1,10 +1,16 @@
 {
-    "latest_model": "artifacts/models/model_v1.pkl",
+    "latest_model": "artifacts/models/model_v2.pkl",
     "versions": [
         {
             "version": "v1",
             "model_path": "artifacts\\models\\model_v1.pkl",
             "timestamp": "2026-03-09 18:07:05.505518"
+        },
+        {
+            "version": "v2",
+            "model_path": "artifacts/models/model_v2.pkl",
+            "timestamp": "2026-03-11 17:12:52.701717",
+            "reason": "performance_degradation_after_drift"
         }
     ]
 }
