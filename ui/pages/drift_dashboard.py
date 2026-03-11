@@ -150,15 +150,11 @@ st.subheader("Model Performance Trend")
 monitor_log = "artifacts/monitoring/monitoring_log.json"
 
 if os.path.exists(monitor_log):
-
     with open(monitor_log, "r") as f:
-
         logs = json.load(f)
-
     perf_df = pd.DataFrame(logs)
 
     if "r2_score" in perf_df.columns:
-
         perf_fig = px.line(
             perf_df,
             x="batch",
@@ -166,13 +162,10 @@ if os.path.exists(monitor_log):
             markers=True,
             title="Model Performance Over Batches"
         )
-
         st.plotly_chart(perf_fig, use_container_width=True)
 
     else:
-
         st.warning("Performance metrics not found in monitoring log")
 
 else:
-
     st.warning("No monitoring logs found")

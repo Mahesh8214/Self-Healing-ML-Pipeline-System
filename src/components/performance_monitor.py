@@ -20,6 +20,9 @@ class PerformanceMonitor:
 
             registry = ModelRegistry()
             model_path = registry.get_latest_model()
+            if not os.path.exists(model_path):
+                logging.warning(f"Model file missing: {model_path}")
+                return 0
             model = load_object(model_path)
             preprocessor = load_object("artifacts/preprocessor.pkl")
 
