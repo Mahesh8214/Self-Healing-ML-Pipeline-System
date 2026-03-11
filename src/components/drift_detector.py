@@ -20,20 +20,12 @@ class DriftDetector:
     
     def calculate_psi(self, expected, actual, bins=10):
 
-<<<<<<< HEAD
-=======
-        import numpy as np
->>>>>>> 9c84a7a19c4a9977226da89b1618b177d62beedb
         # Remove NaN and infinite values
         expected = expected.replace([np.inf, -np.inf], np.nan).dropna()
         actual = actual.replace([np.inf, -np.inf], np.nan).dropna()
 
         if len(expected) == 0 or len(actual) == 0:
             return 0.0
-<<<<<<< HEAD
-
-=======
->>>>>>> 9c84a7a19c4a9977226da89b1618b177d62beedb
         # Create bin edges from reference distribution
         bin_edges = np.linspace(expected.min(), expected.max(), bins + 1)
 
