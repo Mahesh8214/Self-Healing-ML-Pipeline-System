@@ -18,22 +18,34 @@ class DriftDetector:
     def __init__(self):
         self.drift_detector_config = DriftDetectorConfig()
     
-    def calculate_psi(expected, actual, bins=10):
-            expected_percents, _ = np.histogram(expected, bins=bins)
-            actual_percents, _ = np.histogram(actual, bins=bins)
+    def calculate_psi(self, expected, actual, bins=10):
 
-            expected_percents = expected_percents / len(expected)
-            actual_percents = actual_percents / len(actual)
+        # Remove NaN and infinite values
+        expected = expected.replace([np.inf, -np.inf], np.nan).dropna()
+        actual = actual.replace([np.inf, -np.inf], np.nan).dropna()
 
-            psi_values = []
-            for e, a in zip(expected_percents, actual_percents):
-                if e == 0:
-                    e = 0.0001
-                if a == 0:
-                    a = 0.0001
-                psi = (a - e) * np.log(a / e)
-                psi_values.append(psi)
-            return float(sum(psi_values))
+        if len(expected) == 0 or len(actual) == 0:
+            return 0.0
+
+        # Create bin edges from reference distribution
+        bin_edges = np.linspace(expected.min(), expected.max(), bins + 1)
+
+        expected_counts, _ = np.histogram(expected, bins=bin_edges)
+        actual_counts, _ = np.histogram(actual, bins=bin_edges)
+
+        expected_percents = expected_counts / len(expected)
+        actual_percents = actual_counts / len(actual)
+
+        psi_values = []
+        for e, a in zip(expected_percents, actual_percents):
+            if e == 0:
+                e = 0.0001
+            if a == 0:
+                a = 0.0001
+            psi = (a - e) * np.log(a / e)
+            psi_values.append(psi)
+
+        return float(np.sum(psi_values))
 
     def detect_drift(self, reference_df,current_df):
         try:
