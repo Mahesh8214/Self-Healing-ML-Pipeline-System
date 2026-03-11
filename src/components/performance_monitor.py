@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 from sklearn.metrics import r2_score
+import os
 
 from src.utils import load_object
 from src.exception import CustomException
