@@ -71,7 +71,7 @@ This project provides a **self-healing solution** that detects drift, evaluates 
 • Feature distribution comparison (Reference vs Production)  
 • Modular ML pipeline architecture
 
----
+```bash
 
 # System Architecture
 
@@ -95,16 +95,15 @@ This project provides a **self-healing solution** that detects drift, evaluates 
     ┌───────────────────┴───────────────────┐
     │                                       │
     ▼                                       ▼
-
-Data Drift Detection Performance Monitoring
-│ │
-└───────────────┬───────────────────────┘
-▼
-Retraining Trigger
-│
-▼
-Updated Model Version
-
+    Data Drift Detection Performance Monitoring
+     │                                     │    
+     └───────────────┬─────────────────────┘
+                      ▼
+                Retraining Trigger
+                      │
+                      ▼
+             Updated Model Version
+```
 
 The system continuously monitors production data and maintains **model reliability automatically**.
 
@@ -153,7 +152,7 @@ Self-Healing-ML-Pipeline-System
 ├── test_drift_data_maker.py
 ├── requirements.txt
 └── README.md
-'''
+```
 
 The project follows a **modular ML engineering architecture** separating pipelines, components, monitoring, and UI.
 
@@ -240,7 +239,7 @@ Track model versions, timestamps, and retraining history.
 
 ```bash
 pip install -r requirements.txt
----
+```
 
 
 ## 2 Generate Production Data Batches
@@ -262,20 +261,20 @@ data/production_batches
 
 ```bash
 python -m src.pipelines.training_pipeline
----
+```
 
 ## 4 Launch Monitoring Dashboard
 
 ```bash
 streamlit run ui/app.py
----
+```
 
 ## 5 Trigger Monitoring
 
 Inside the dashboard:
 ```bash
 Monitoring Page → Run Monitoring Pipeline
----
+```
 
 # Challenges Faced
 
