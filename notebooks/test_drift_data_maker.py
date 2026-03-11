@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 # Load dataset
-df = pd.read_csv("notebooks/data/gemstone.csv")
+df = pd.read_csv("data/raw/gemstone.csv")
 
 # Shuffle dataset
 df = df.sample(frac=1, random_state=42).reset_index(drop=True)
@@ -26,7 +26,7 @@ reference_data.to_csv("artifacts/data/reference_data.csv", index=False)
 test_data.to_csv("artifacts/data/test_data.csv", index=False)
 
 # Create production batches
-batch_size = 200
+batch_size = 50
 
 for i in range(0, len(production_data), batch_size):
 
