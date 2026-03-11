@@ -3,7 +3,9 @@ seaborn
 numpy
 flask
 scikit-learn
-Streamlit
 plotly  
+altair==5.4.1
+streamlit>=1.38.0
+pyarrow
 
 -e .

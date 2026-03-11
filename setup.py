@@ -15,7 +15,7 @@ def get_requirements(file_path:str) -> List[str]:
         return requirements
 
 setup(
-    name="Practice DPP",
+    name="Practice-DiamondPP",
     version = "1.0.1",
     author = "Mahesh",
     author_email = "student.maheshsingh@gmail.com",
