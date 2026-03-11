@@ -34,7 +34,7 @@ reference_data.to_csv("artifacts/data/reference_data.csv", index=False)
 test_data.to_csv("artifacts/data/test_data.csv", index=False)
 
 # Create production batches
-batch_size = 150
+batch_size = 300
 
 for i in range(0, len(production_data), batch_size):
     batch = production_data[i:i+batch_size]
