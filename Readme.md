@@ -276,7 +276,7 @@ Inside the dashboard:
 Monitoring Page → Run Monitoring Pipeline
 ```
 
-# Challenges Faced
+# Challenges Faced 😥
 
 ## Histogram Bin Errors in PSI
 
@@ -311,7 +311,7 @@ Solution:
 ---
 
 # Technologies Used
-```bash
+
 | Category | Technology |
 |--------|-------------|
 | Language | Python |
