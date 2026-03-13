@@ -57,7 +57,15 @@ def load_object(file_path):
 MONITOR_LOG_PATH = "artifacts/monitoring/monitoring_log.json"
 
 def log_monitoring(batch, drift, score, retrained):
+
+    import os
+    import json
+    from datetime import datetime
+
+    log_path = "artifacts/monitoring/monitoring_log.json"
+
     os.makedirs("artifacts/monitoring", exist_ok=True)
+
     entry = {
         "timestamp": str(datetime.now()),
         "batch": batch,
@@ -66,12 +74,15 @@ def log_monitoring(batch, drift, score, retrained):
         "retraining_triggered": retrained
     }
 
-    if not os.path.exists(MONITOR_LOG_PATH):
-        logs = []
-    else:
-        with open(MONITOR_LOG_PATH, "r") as f:
-            logs = json.load(f)
+    if os.path.exists(log_path):
 
-    logs.append(entry)
-    with open(MONITOR_LOG_PATH, "w") as f:
-        json.dump(logs, f, indent=4)
+        with open(log_path) as f:
+            data = json.load(f)
+
+    else:
+        data = []
+
+    data.append(entry)
+
+    with open(log_path, "w") as f:
+        json.dump(data, f, indent=4)

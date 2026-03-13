@@ -40,3 +40,4 @@ def mark_batch_processed(batch_name):
     data = load_batch_log()
     data["processed_batches"].append(batch_name)
     save_batch_log(data)
+

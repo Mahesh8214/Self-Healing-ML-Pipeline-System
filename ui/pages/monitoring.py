@@ -14,7 +14,9 @@ st.subheader("System Operations")
 if st.button("Run Monitoring Pipeline"):
     monitor = MonitoringPipeline()
     monitor.run_monitoring()
+
     st.success("Monitoring pipeline executed")
+    st.rerun()
 
 
 if st.button("Run Training Pipeline"):

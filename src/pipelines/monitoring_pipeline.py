@@ -73,6 +73,7 @@ class MonitoringPipeline:
                     logging.warning("Drift + Performance drop → Retraining model")
                     # Import here to avoid circular import
                     from src.pipelines.training_pipeline import run_training_pipeline
+                    logging.info("Performance degraded → Retraining")
                     run_training_pipeline()
                     retraining_triggered = True
                 else:
@@ -80,6 +81,8 @@ class MonitoringPipeline:
                 # -----------------------------------
                 # Step 5 — Save Monitoring Log
                 # -----------------------------------
+                
+                # Log monitoring event
                 log_monitoring(
                     batch=batch_file,
                     drift=drift,

@@ -169,3 +169,30 @@ if os.path.exists(monitor_log):
 
 else:
     st.warning("No monitoring logs found")
+
+
+st.subheader("Monitoring Timeline")
+log_path = "artifacts/monitoring/monitoring_log.json"
+
+if os.path.exists(log_path):
+    with open(log_path) as f:
+        logs = json.load(f)
+    df = pd.DataFrame(logs)
+    st.dataframe(df)
+    st.subheader("Model Performance Over Time")
+    import plotly.express as px
+    fig = px.line(
+        df,
+        x="batch",
+        y="r2_score",
+        markers=True,
+        title="Model Performance Across Batches"
+    )
+    st.plotly_chart(fig)
+    st.subheader("Retraining Events")
+    retrained = df[df["retraining_triggered"] == True]
+    if len(retrained) > 0:
+        st.error("Automatic Retraining Triggered")
+        st.write(retrained)
+else:
+    st.warning("No monitoring logs found. Run monitoring pipeline first.")
