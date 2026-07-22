@@ -2,152 +2,246 @@ import streamlit as st
 import json
 import pandas as pd
 import os
+import sys
+import threading
 import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime
 
-st.title("Drift Dashboard")
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+
+from src.job_manager import JobManager
+from src.registry.model_registry import ModelRegistry
+from src.pipelines.monitoring_pipeline import MonitoringPipeline
+from src.pipelines.training_pipeline import run_training_pipeline
+
+st.set_page_config(
+    page_title="Drift Monitoring & Self-Healing Center",
+    page_icon="📊",
+    layout="wide"
+)
 
 # ---------------------------------------------------
-# Load Drift Report
+# Header & Navigation
 # ---------------------------------------------------
+st.title("📊 Drift Monitoring & Self-Healing Center")
+st.caption("Real-Time Data Drift Diagnostics, Feature Breakdown, Background Training & Model Governance")
 
+# ---------------------------------------------------
+# Data Loaders
+# ---------------------------------------------------
 report_path = "artifacts/reports/drift_report.json"
-
-if not os.path.exists(report_path):
-
-    st.warning("No drift report found. Run monitoring pipeline first.")
-
-else:
-
-    with open(report_path, "r") as f:
-        report = json.load(f)
-
-    st.subheader("Drift Summary")
-
-    drift_flag = report.get("drift_detected", False)
-
-    col1, col2 = st.columns(2)
-
-    if drift_flag:
-        col1.error("⚠ Data Drift Detected")
-    else:
-        col1.success("✅ No Data Drift Detected")
-
-    feature_results = report.get("feature_results", {})
-
-    if feature_results:
-        col2.metric("Total Features Monitored", len(feature_results))
-
-    # ---------------------------------------------------
-    # Feature Drift Table
-    # ---------------------------------------------------
-
-    st.subheader("Feature Drift Details")
-
-    if feature_results:
-
-        df = pd.DataFrame(feature_results).T
-
-        st.dataframe(df)
-
-        # Drifted feature list
-        st.subheader("Drifted Features")
-
-        drifted = df[df["drift_detected"] == True]
-
-        if len(drifted) > 0:
-
-            st.error("Drift detected in the following features:")
-
-            st.write(drifted.index.tolist())
-
-        else:
-
-            st.success("No features drifted")
-
-    else:
-
-        st.warning("No feature drift information available")
-
-# ---------------------------------------------------
-# Feature Distribution Visualization
-# ---------------------------------------------------
-
-st.subheader("Feature Distribution Comparison")
-
 reference_path = "artifacts/data/reference_data.csv"
 batch_folder = "data/production_batches"
+monitor_log_path = "artifacts/monitoring/monitoring_log.json"
 
-if os.path.exists(reference_path) and os.path.exists(batch_folder):
+report = None
+if os.path.exists(report_path):
+    try:
+        with open(report_path, "r") as f:
+            report = json.load(f)
+    except Exception as e:
+        st.error(f"Error reading drift report: {e}")
 
-    ref_df = pd.read_csv(reference_path)
+latest_job = JobManager.get_latest_job()
+active_job = JobManager.has_active_job()
+settings = JobManager.get_settings()
 
-    batches = os.listdir(batch_folder)
+registry = ModelRegistry()
+try:
+    latest_model_path = registry.get_latest_model()
+    reg_data = registry.load_registry()
+    version_count = len(reg_data.get("versions", []))
+    latest_version = reg_data.get("versions", [{}])[-1].get("version", f"v{version_count}") if reg_data.get("versions") else "v1"
+except Exception:
+    latest_version = "v1"
 
-    if len(batches) > 0:
+# Determine System Status
+drift_flag = report.get("drift_detected", False) if report else False
 
-        latest_batch = sorted(batches)[-1]
-
-        batch_df = pd.read_csv(os.path.join(batch_folder, latest_batch))
-
-        feature = st.selectbox(
-            "Select Feature",
-            ["carat", "depth", "table", "x", "y", "z"]
-        )
-
-        chart_df = pd.DataFrame({
-            "Reference": ref_df[feature],
-            "Production": batch_df[feature]
-        })
-
-        chart_df = chart_df.melt(
-            var_name="Dataset",
-            value_name="Value"
-        )
-
-        fig = px.histogram(
-            chart_df,
-            x="Value",
-            color="Dataset",
-            opacity=0.6,
-            barmode="overlay",
-            title=f"{feature} Distribution Comparison"
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-    else:
-
-        st.warning("No production batches found")
-
+if active_job:
+    sys_status = "RETRAINING"
+    sys_badge = "🔄 RETRAINING IN PROGRESS"
+    sys_color = "orange"
+elif drift_flag and settings.get("auto_healing", True):
+    sys_status = "RECOVERED"
+    sys_badge = "⚡ DRIFT DETECTED — AUTO-HEALED"
+    sys_color = "green"
+elif drift_flag and not settings.get("auto_healing", True):
+    sys_status = "ACTION REQUIRED"
+    sys_badge = "⚠️ DRIFT DETECTED — RETRAINING RECOMMENDED"
+    sys_color = "red"
 else:
-
-    st.warning("Reference or production data missing")
+    sys_status = "HEALTHY"
+    sys_badge = "✅ SYSTEM HEALTHY"
+    sys_color = "green"
 
 # ---------------------------------------------------
-# PSI Visualization (if PSI exists in drift report)
+# SECTION A: SYSTEM STATUS HEADER
 # ---------------------------------------------------
+st.subheader("A. System Status Header")
 
-if "df" in locals() and "psi_score" in df.columns:
+col_a1, col_a2, col_a3, col_a4, col_a5 = st.columns(5)
 
-    st.subheader("Population Stability Index (PSI)")
+col_a1.metric("Overall Status", sys_status)
+col_a2.metric("Production Model", latest_version)
 
-    psi_fig = px.bar(
-        df,
-        x="psi_score",
-        y=df.index,
-        orientation="h",
-        title="PSI Score by Feature"
+last_mon_time = report.get("timestamp", "N/A") if report else "No runs yet"
+col_a3.metric("Last Monitoring", last_mon_time.split(" ")[-1] if " " in last_mon_time else last_mon_time)
+
+batches = sorted(os.listdir(batch_folder)) if os.path.exists(batch_folder) else []
+latest_batch_name = batches[-1] if batches else "None"
+col_a4.metric("Active Batch", latest_batch_name)
+
+current_pipeline_state = latest_job.get("status") if active_job else ("DRIFT DETECTED" if drift_flag else "MONITORING IDLE")
+col_a5.metric("Pipeline State", current_pipeline_state)
+
+# Operations Bar
+st.write("---")
+btn_col1, btn_col2, btn_col3 = st.columns([2, 2, 3])
+
+with btn_col1:
+    if st.button("▶ Run Monitoring Pipeline", use_container_width=True):
+        with st.spinner("Executing monitoring pipeline..."):
+            mp = MonitoringPipeline()
+            mp.run_monitoring()
+        st.success("Monitoring complete!")
+        st.rerun()
+
+with btn_col2:
+    if st.button("⚡ Trigger Retraining Job", type="primary", disabled=active_job, use_container_width=True):
+        if not JobManager.has_active_job():
+            job = JobManager.create_job(trigger_reason="manual_dashboard_trigger")
+            if job:
+                t = threading.Thread(
+                    target=run_training_pipeline,
+                    kwargs={"job_id": job["job_id"], "demo_mode": settings.get("demo_mode", True)},
+                    daemon=True
+                )
+                t.start()
+                st.success(f"Retraining job #{job['job_id']} started!")
+                st.rerun()
+
+with btn_col3:
+    if active_job:
+        st.warning(f"🔄 Training Job #{latest_job['job_id']} is running ({latest_job.get('current_stage')}). Auto-refreshing...")
+
+st.divider()
+
+# ---------------------------------------------------
+# SECTION B: DRIFT SUMMARY
+# ---------------------------------------------------
+st.subheader("B. Data Drift Summary Metrics")
+
+if not report:
+    st.warning("No drift report found. Please run the monitoring pipeline first.")
+else:
+    total_feat = report.get("total_features", 0)
+    drifted_count = report.get("drifted_count", len(report.get("drifted_features", [])))
+    drift_pct = report.get("drift_percentage", 0.0)
+    retrain_req = report.get("retraining_required", False)
+    threshold_str = f"{report.get('drift_threshold', 0.20)} PSI / 0.05 KS"
+
+    b_col1, b_col2, b_col3, b_col4, b_col5 = st.columns(5)
+    b_col1.metric("Total Monitored Features", total_feat)
+    b_col2.metric("Drifted Features Count", drifted_count)
+    b_col3.metric("Drift Percentage", f"{drift_pct}%")
+    b_col4.metric("Overall Drift Status", "DETECTED" if drift_flag else "NONE")
+    b_col5.metric("Retraining Required", "YES" if retrain_req else "NO")
+
+    # ---------------------------------------------------
+    # SECTION C: FEATURE-LEVEL DRIFT TABLE
+    # ---------------------------------------------------
+    st.subheader("C. Feature-Level Drift Diagnostics")
+
+    feat_results = report.get("feature_results", {})
+    if feat_results:
+        table_rows = []
+        for feat, val in feat_results.items():
+            table_rows.append({
+                "Feature": feat,
+                "Test / Metric": val.get("metric", "KS / PSI"),
+                "KS p-value": val.get("ks_p_value", "N/A"),
+                "PSI Score": val.get("psi_score", 0.0),
+                "Threshold": val.get("threshold", 0.20),
+                "Status": val.get("status", "Drifted" if val.get("drift_detected") else "Stable")
+            })
+
+        df_feat = pd.DataFrame(table_rows)
+
+        def style_status(val):
+            if val == "Drifted":
+                return "background-color: #ffcccc; color: #990000; font-weight: bold;"
+            elif val == "Warning":
+                return "background-color: #fff3cd; color: #856404; font-weight: bold;"
+            else:
+                return "background-color: #d4edda; color: #155724; font-weight: bold;"
+
+        st.dataframe(
+            df_feat.style.applymap(style_status, subset=["Status"]),
+            use_container_width=True
+        )
+    else:
+        st.info("No detailed feature drift statistics recorded.")
+
+st.divider()
+
+# ---------------------------------------------------
+# SECTION D: FEATURE DRIFT EXPLORER
+# ---------------------------------------------------
+st.subheader("D. Feature Drift Explorer & Distribution Comparison")
+
+if os.path.exists(reference_path) and os.path.exists(batch_folder) and batches:
+    ref_df = pd.read_csv(reference_path)
+    latest_batch_df = pd.read_csv(os.path.join(batch_folder, latest_batch_name))
+
+    # All available features
+    all_features = [col for col in ref_df.columns if col in latest_batch_df.columns and col != "price"]
+
+    # Prioritize drifted features at top of select list
+    drifted_list = report.get("drifted_features", []) if report else []
+    ordered_features = [f for f in drifted_list if f in all_features] + [f for f in all_features if f not in drifted_list]
+
+    selected_feature = st.selectbox(
+        "Select Monitored Feature for Distribution Comparison (Drifted Features Prioritized):",
+        options=ordered_features
     )
 
-    st.plotly_chart(psi_fig, use_container_width=True)
+    if selected_feature:
+        # Display Feature Metadata Card
+        feat_meta = feat_results.get(selected_feature, {}) if feat_results else {}
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Feature Name", selected_feature)
+        m2.metric("PSI Score", feat_meta.get("psi_score", "N/A"))
+        m3.metric("KS p-value", feat_meta.get("ks_p_value", "N/A"))
+        m4.metric("Status", feat_meta.get("status", "N/A"))
 
-# ---------------------------------------------------
-# Model Performance Trend
-# ---------------------------------------------------
+        # Plot Distributions
+        if pd.api.types.is_numeric_dtype(ref_df[selected_feature]):
+            chart_df = pd.DataFrame({
+                "Reference Distribution": ref_df[selected_feature],
+                f"Current Production Batch ({latest_batch_name})": latest_batch_df[selected_feature]
+            }).melt(var_name="Dataset", value_name="Value")
 
-st.subheader("Model Performance Trend")
+            fig = px.histogram(
+                chart_df,
+                x="Value",
+                color="Dataset",
+                opacity=0.6,
+                barmode="overlay",
+                histnorm="probability density",
+                title=f"Numerical Distribution Comparison for '{selected_feature}'"
+            )
+            fig.update_layout(margin=dict(l=20, r=20, t=40, b=20))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            ref_counts = ref_df[selected_feature].value_counts(normalize=True).reset_index()
+            ref_counts.columns = ["Category", "Proportion"]
+            ref_counts["Dataset"] = "Reference Distribution"
 
-monitor_log = "artifacts/monitoring/monitoring_log.json"
+            batch_counts = latest_batch_df[selected_feature].value_counts(normalize=True).reset_index()
+            batch_counts.columns = ["Category", "Proportion"]
+            batch_counts["Dataset"] = f"Current Production Batch ({latest_batch_name})"
 
 if os.path.exists(monitor_log):
     with open(monitor_log, "r") as f:
@@ -167,6 +261,7 @@ if os.path.exists(monitor_log):
     else:
         st.warning("Performance metrics not found in monitoring log")
 
+        st.info("💡 **MLOps Note**: Retraining updates the candidate model to adapt to shifted data distributions. Retraining does NOT alter the input data distribution itself.")
 else:
     st.warning("No monitoring logs found")
 

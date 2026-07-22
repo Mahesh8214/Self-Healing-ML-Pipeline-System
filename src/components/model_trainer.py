@@ -9,8 +9,9 @@ from src.registry.model_registry import ModelRegistry
 
 from src.utils import save_object
 from src.utils import evaluate_model
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 from src.utils import load_object
+
 
 from dataclasses import dataclass
 import sys
@@ -64,41 +65,86 @@ class ModelTrainer:
             # Train the selected best model
             best_model.fit(X_train, y_train)
 
-            # Evaluate new model
-            y_pred_new = best_model.predict(X_test)
-            new_score = r2_score(y_test, y_pred_new)
+            # Evaluate candidate Challenger model
+            y_pred_challenger = best_model.predict(X_test)
+            challenger_r2 = float(r2_score(y_test, y_pred_challenger))
+            challenger_mae = float(mean_absolute_error(y_test, y_pred_challenger))
+            challenger_mse = float(mean_squared_error(y_test, y_pred_challenger))
+            challenger_rmse = float(np.sqrt(challenger_mse))
 
-            logging.info(f"New model R2 score: {new_score}")
+            challenger_metrics = {
+                "r2": round(challenger_r2, 4),
+                "mae": round(challenger_mae, 2),
+                "mse": round(challenger_mse, 2),
+                "rmse": round(challenger_rmse, 2),
+                "model_name": best_model_name
+            }
+
+            logging.info(f"Challenger Model ({best_model_name}) Metrics: {challenger_metrics}")
 
             registry = ModelRegistry()
-
             old_model_path = registry.get_latest_model()
 
             deploy_new_model = True
+            champion_metrics = None
+            promotion_reason = ""
+            champion_version = "v0"
 
-            if old_model_path is not None:
+            from src.job_manager import JobManager
+            settings = JobManager.get_settings()
+            min_improvement = settings.get("min_improvement_threshold", 0.001)
 
+            if old_model_path is not None and os.path.exists(old_model_path):
                 try:
                     old_model = load_object(old_model_path)
+                    y_pred_champion = old_model.predict(X_test)
 
-                    y_pred_old = old_model.predict(X_test)
+                    champion_r2 = float(r2_score(y_test, y_pred_champion))
+                    champion_mae = float(mean_absolute_error(y_test, y_pred_champion))
+                    champion_mse = float(mean_squared_error(y_test, y_pred_champion))
+                    champion_rmse = float(np.sqrt(champion_mse))
 
-                    old_score = r2_score(y_test, y_pred_old)
+                    reg_data = registry.load_registry()
+                    champion_version = f"v{len(reg_data.get('versions', []))}" if reg_data.get("versions") else "v1"
 
-                    logging.info(f"Previous model R2 score: {old_score}")
+                    champion_metrics = {
+                        "r2": round(champion_r2, 4),
+                        "mae": round(champion_mae, 2),
+                        "mse": round(champion_mse, 2),
+                        "rmse": round(champion_rmse, 2),
+                        "model_version": champion_version
+                    }
 
-                    if new_score <= old_score:
-                        logging.info("New model worse → rollback (keeping old model)")
+                    logging.info(f"Champion Model Metrics: {champion_metrics}")
+
+                    # Quality Gate evaluation
+                    r2_diff = challenger_r2 - champion_r2
+                    if challenger_r2 >= (champion_r2 + min_improvement):
+                        deploy_new_model = True
+                        promotion_reason = (
+                            f"Challenger promoted because R2 improved from {champion_r2:.4f} to {challenger_r2:.4f} "
+                            f"(+{r2_diff:.4f}, exceeding required min delta {min_improvement:.4f})."
+                        )
+                    else:
                         deploy_new_model = False
+                        promotion_reason = (
+                            f"Challenger rejected because R2 score ({challenger_r2:.4f}) did not exceed "
+                            f"Champion R2 ({champion_r2:.4f}) + min threshold ({min_improvement:.4f})."
+                        )
                 except Exception as e:
-                    logging.warning("Could not evaluate old model, deploying new model")
+                    logging.warning(f"Could not evaluate existing model: {e}. Defaulting to deploy new model.")
+                    deploy_new_model = True
+                    promotion_reason = "No valid prior Champion model available for comparison; deploying candidate model."
+            else:
+                promotion_reason = "Initial production model deployment."
 
+            assigned_version = "v1"
             if deploy_new_model:
-                version = registry.get_next_version()
+                assigned_version = registry.get_next_version()
 
                 model_path = os.path.join(
                     self.model_trainer_config.trained_model_dir,
-                    f"model_{version}.pkl"
+                    f"model_{assigned_version}.pkl"
                 )
 
                 os.makedirs(self.model_trainer_config.trained_model_dir, exist_ok=True)
@@ -110,8 +156,21 @@ class ModelTrainer:
 
                 registry.register_model(model_path, reason="performance_degradation_after_drift")
 
-                logging.info(f"New model deployed at {model_path}")
+                logging.info(f"New model version {assigned_version} deployed at {model_path}")
+            else:
+                assigned_version = champion_version
+                logging.info(f"Model deployment skipped. Active model remains {champion_version}.")
+
+            return {
+                "deploy_new_model": deploy_new_model,
+                "version": assigned_version,
+                "best_model_name": best_model_name,
+                "champion_metrics": champion_metrics,
+                "challenger_metrics": challenger_metrics,
+                "promotion_decision": "PROMOTED" if deploy_new_model else "REJECTED",
+                "promotion_reason": promotion_reason
+            }
 
         except Exception as e:
-            logging.info('Exception occured at Model Training')
-            raise CustomException(e,sys)
+            logging.info('Exception occurred at Model Training')
+            raise CustomException(e, sys)

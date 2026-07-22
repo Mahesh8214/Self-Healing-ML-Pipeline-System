@@ -1,0 +1,177 @@
+{
+    "jobs": [
+        {
+            "job_id": "job_20260723_001501_aef2",
+            "status": "FAILED",
+            "current_stage": "Model Training",
+            "created_at": "2026-07-23 00:15:01",
+            "started_at": "2026-07-23 00:15:01",
+            "completed_at": "2026-07-23 00:15:02",
+            "error_message": "Error occured in python script name [D:\\pwskills\\project\\self-healing-ML-pipeline\\src\\components\\model_trainer.py] line name [70] error message [name 'mean_absolute_error' is not defined]",
+            "model_version": null,
+            "trigger_reason": "test",
+            "stages": {
+                "Data Validation": "COMPLETED",
+                "Drift Detection": "COMPLETED",
+                "Retraining Trigger": "COMPLETED",
+                "Model Training": "FAILED",
+                "Model Evaluation": "WAITING",
+                "Champion vs Challenger": "WAITING",
+                "Quality Gate": "WAITING",
+                "Model Promotion": "WAITING"
+            },
+            "champion_metrics": null,
+            "challenger_metrics": null,
+            "promotion_decision": null,
+            "promotion_reason": null
+        },
+        {
+            "job_id": "job_20260723_001519_0c1b",
+            "status": "COMPLETED",
+            "current_stage": "Model Promotion",
+            "created_at": "2026-07-23 00:15:19",
+            "started_at": "2026-07-23 00:15:19",
+            "completed_at": "2026-07-23 00:15:20",
+            "error_message": null,
+            "model_version": "v32",
+            "trigger_reason": "test_fix",
+            "stages": {
+                "Data Validation": "COMPLETED",
+                "Drift Detection": "COMPLETED",
+                "Retraining Trigger": "COMPLETED",
+                "Model Training": "COMPLETED",
+                "Model Evaluation": "COMPLETED",
+                "Champion vs Challenger": "COMPLETED",
+                "Quality Gate": "COMPLETED",
+                "Model Promotion": "COMPLETED"
+            },
+            "champion_metrics": {
+                "r2": 0.9609,
+                "mae": 394.14,
+                "mse": 537034.55,
+                "rmse": 732.83,
+                "model_version": "v32"
+            },
+            "challenger_metrics": {
+                "r2": 0.9571,
+                "mae": 438.87,
+                "mse": 590349.19,
+                "rmse": 768.34,
+                "model_name": "DecisionTree"
+            },
+            "promotion_decision": "REJECTED",
+            "promotion_reason": "Challenger rejected because R2 score (0.9571) did not exceed Champion R2 (0.9609) + min threshold (0.0010)."
+        },
+        {
+            "job_id": "job_20260723_001637_ad53",
+            "status": "COMPLETED",
+            "current_stage": "Model Promotion",
+            "created_at": "2026-07-23 00:16:37",
+            "started_at": "2026-07-23 00:16:38",
+            "completed_at": "2026-07-23 00:16:40",
+            "error_message": null,
+            "model_version": "v32",
+            "trigger_reason": "manual_dashboard_trigger",
+            "stages": {
+                "Data Validation": "COMPLETED",
+                "Drift Detection": "COMPLETED",
+                "Retraining Trigger": "COMPLETED",
+                "Model Training": "COMPLETED",
+                "Model Evaluation": "COMPLETED",
+                "Champion vs Challenger": "COMPLETED",
+                "Quality Gate": "COMPLETED",
+                "Model Promotion": "COMPLETED"
+            },
+            "champion_metrics": {
+                "r2": 0.9609,
+                "mae": 394.14,
+                "mse": 537034.55,
+                "rmse": 732.83,
+                "model_version": "v32"
+            },
+            "challenger_metrics": {
+                "r2": 0.9558,
+                "mae": 441.41,
+                "mse": 608324.06,
+                "rmse": 779.95,
+                "model_name": "DecisionTree"
+            },
+            "promotion_decision": "REJECTED",
+            "promotion_reason": "Challenger rejected because R2 score (0.9558) did not exceed Champion R2 (0.9609) + min threshold (0.0010)."
+        },
+        {
+            "job_id": "job_20260723_001723_4b89",
+            "status": "COMPLETED",
+            "current_stage": "Model Promotion",
+            "created_at": "2026-07-23 00:17:23",
+            "started_at": "2026-07-23 00:17:24",
+            "completed_at": "2026-07-23 00:17:25",
+            "error_message": null,
+            "model_version": "v32",
+            "trigger_reason": "manual_dashboard_trigger",
+            "stages": {
+                "Data Validation": "COMPLETED",
+                "Drift Detection": "COMPLETED",
+                "Retraining Trigger": "COMPLETED",
+                "Model Training": "COMPLETED",
+                "Model Evaluation": "COMPLETED",
+                "Champion vs Challenger": "COMPLETED",
+                "Quality Gate": "COMPLETED",
+                "Model Promotion": "COMPLETED"
+            },
+            "champion_metrics": {
+                "r2": 0.9609,
+                "mae": 394.14,
+                "mse": 537034.55,
+                "rmse": 732.83,
+                "model_version": "v32"
+            },
+            "challenger_metrics": {
+                "r2": 0.9577,
+                "mae": 433.39,
+                "mse": 581305.91,
+                "rmse": 762.43,
+                "model_name": "DecisionTree"
+            },
+            "promotion_decision": "REJECTED",
+            "promotion_reason": "Challenger rejected because R2 score (0.9577) did not exceed Champion R2 (0.9609) + min threshold (0.0010)."
+        },
+        {
+            "job_id": "job_20260723_001809_f8e9",
+            "status": "COMPLETED",
+            "current_stage": "Model Promotion",
+            "created_at": "2026-07-23 00:18:09",
+            "started_at": "2026-07-23 00:18:09",
+            "completed_at": "2026-07-23 00:18:11",
+            "error_message": null,
+            "model_version": "v32",
+            "trigger_reason": "manual_dashboard_trigger",
+            "stages": {
+                "Data Validation": "COMPLETED",
+                "Drift Detection": "COMPLETED",
+                "Retraining Trigger": "COMPLETED",
+                "Model Training": "COMPLETED",
+                "Model Evaluation": "COMPLETED",
+                "Champion vs Challenger": "COMPLETED",
+                "Quality Gate": "COMPLETED",
+                "Model Promotion": "COMPLETED"
+            },
+            "champion_metrics": {
+                "r2": 0.9609,
+                "mae": 394.14,
+                "mse": 537034.55,
+                "rmse": 732.83,
+                "model_version": "v32"
+            },
+            "challenger_metrics": {
+                "r2": 0.95,
+                "mae": 462.94,
+                "mse": 687558.81,
+                "rmse": 829.19,
+                "model_name": "DecisionTree"
+            },
+            "promotion_decision": "REJECTED",
+            "promotion_reason": "Challenger rejected because R2 score (0.9500) did not exceed Champion R2 (0.9609) + min threshold (0.0010)."
+        }
+    ]
+}
