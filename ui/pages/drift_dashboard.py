@@ -28,7 +28,7 @@ st.title("📊 Drift Monitoring & Self-Healing Center")
 st.caption("Real-Time Data Drift Diagnostics, Feature Breakdown, Background Training & Model Governance")
 
 # ---------------------------------------------------
-# Data Loaders
+# Data Loaders (Safely Top-Level Initialized)
 # ---------------------------------------------------
 report_path = "artifacts/reports/drift_report.json"
 reference_path = "artifacts/data/reference_data.csv"
@@ -36,10 +36,12 @@ batch_folder = "data/production_batches"
 monitor_log_path = "artifacts/monitoring/monitoring_log.json"
 
 report = None
+feat_results = {}
 if os.path.exists(report_path):
     try:
         with open(report_path, "r") as f:
             report = json.load(f)
+            feat_results = report.get("feature_results", {})
     except Exception as e:
         st.error(f"Error reading drift report: {e}")
 
@@ -154,7 +156,6 @@ else:
     # ---------------------------------------------------
     st.subheader("C. Feature-Level Drift Diagnostics")
 
-    feat_results = report.get("feature_results", {})
     if feat_results:
         table_rows = []
         for feat, val in feat_results.items():
@@ -243,51 +244,146 @@ if os.path.exists(reference_path) and os.path.exists(batch_folder) and batches:
             batch_counts.columns = ["Category", "Proportion"]
             batch_counts["Dataset"] = f"Current Production Batch ({latest_batch_name})"
 
-if os.path.exists(monitor_log):
-    with open(monitor_log, "r") as f:
-        logs = json.load(f)
-    perf_df = pd.DataFrame(logs)
+            cat_df = pd.concat([ref_counts, batch_counts])
 
-    if "r2_score" in perf_df.columns:
-        perf_fig = px.line(
-            perf_df,
-            x="batch",
-            y="r2_score",
-            markers=True,
-            title="Model Performance Over Batches"
-        )
-        st.plotly_chart(perf_fig, use_container_width=True)
-
-    else:
-        st.warning("Performance metrics not found in monitoring log")
+            fig = px.bar(
+                cat_df,
+                x="Category",
+                y="Proportion",
+                color="Dataset",
+                barmode="group",
+                title=f"Categorical Proportion Comparison for '{selected_feature}'"
+            )
+            fig.update_layout(margin=dict(l=20, r=20, t=40, b=20))
+            st.plotly_chart(fig, use_container_width=True)
 
         st.info("💡 **MLOps Note**: Retraining updates the candidate model to adapt to shifted data distributions. Retraining does NOT alter the input data distribution itself.")
 else:
-    st.warning("No monitoring logs found")
+    st.warning("Reference dataset or production batch files missing.")
 
+st.divider()
 
-st.subheader("Monitoring Timeline")
-log_path = "artifacts/monitoring/monitoring_log.json"
+# ---------------------------------------------------
+# SECTION E: SELF-HEALING PIPELINE STATUS & JOB UI
+# ---------------------------------------------------
+st.subheader("E. Self-Healing Pipeline Execution & Retraining Job Status")
 
-if os.path.exists(log_path):
-    with open(log_path) as f:
-        logs = json.load(f)
-    df = pd.DataFrame(logs)
-    st.dataframe(df)
-    st.subheader("Model Performance Over Time")
-    import plotly.express as px
-    fig = px.line(
-        df,
-        x="batch",
-        y="r2_score",
-        markers=True,
-        title="Model Performance Across Batches"
-    )
-    st.plotly_chart(fig)
-    st.subheader("Retraining Events")
-    retrained = df[df["retraining_triggered"] == True]
-    if len(retrained) > 0:
-        st.error("Automatic Retraining Triggered")
-        st.write(retrained)
+if not latest_job:
+    st.info("No training jobs recorded yet. Click 'Trigger Retraining Job' above to start a background training run.")
 else:
-    st.warning("No monitoring logs found. Run monitoring pipeline first.")
+    job_id = latest_job.get("job_id")
+    job_status = latest_job.get("status")
+    curr_stage = latest_job.get("current_stage")
+    stages = latest_job.get("stages", {})
+
+    j_col1, j_col2, j_col3, j_col4 = st.columns(4)
+    j_col1.metric("Training Job ID", job_id)
+    j_col2.metric("Job Status", job_status)
+    j_col3.metric("Current Pipeline Stage", curr_stage)
+    j_col4.metric("Trigger Reason", latest_job.get("trigger_reason", "manual"))
+
+    st.write("#### ⏳ Stage Progress Stepper")
+    stage_cols = st.columns(len(stages))
+    for idx, (s_name, s_status) in enumerate(stages.items()):
+        with stage_cols[idx]:
+            if s_status == "COMPLETED":
+                st.success(f"✓ {s_name}")
+            elif s_status == "RUNNING":
+                st.warning(f"⏳ {s_name}")
+            elif s_status == "FAILED":
+                st.error(f"❌ {s_name}")
+            else:
+                st.info(f"○ {s_name}")
+
+    if latest_job.get("error_message"):
+        st.error(f"Job Error Traceback: {latest_job['error_message']}")
+
+st.divider()
+
+# ---------------------------------------------------
+# SECTION F: CHAMPION VS CHALLENGER COMPARISON
+# ---------------------------------------------------
+st.subheader("F. Champion vs Challenger Quality Gate")
+
+if latest_job and latest_job.get("status") == "COMPLETED" and latest_job.get("challenger_metrics"):
+    champ = latest_job.get("champion_metrics") or {}
+    chall = latest_job.get("challenger_metrics") or {}
+    decision = latest_job.get("promotion_decision", "UNKNOWN")
+    reason = latest_job.get("promotion_reason", "No details available.")
+
+    st.write(f"### Outcome: **:{'green' if decision=='PROMOTED' else 'red'}[{decision}]**")
+    st.info(f"📋 **Quality Gate Decision Explanation**: {reason}")
+
+    comp_rows = [
+        {
+            "Metric": "Model Version / Name",
+            "Champion (Production)": champ.get("model_version", "vOld"),
+            "Challenger (Candidate)": chall.get("model_name", "DecisionTree"),
+            "Improvement (Delta)": "-"
+        },
+        {
+            "Metric": "R² Score (Primary)",
+            "Champion (Production)": f"{champ.get('r2', 0.0):.4f}" if champ.get("r2") is not None else "N/A",
+            "Challenger (Candidate)": f"{chall.get('r2', 0.0):.4f}",
+            "Improvement (Delta)": f"{chall.get('r2', 0.0) - champ.get('r2', 0.0):+.4f}" if champ.get("r2") is not None else "N/A"
+        },
+        {
+            "Metric": "Mean Absolute Error (MAE)",
+            "Champion (Production)": f"${champ.get('mae', 0.0):,.2f}" if champ.get("mae") is not None else "N/A",
+            "Challenger (Candidate)": f"${chall.get('mae', 0.0):,.2f}",
+            "Improvement (Delta)": f"${chall.get('mae', 0.0) - champ.get('mae', 0.0):+,.2f}" if champ.get("mae") is not None else "N/A"
+        },
+        {
+            "Metric": "Root Mean Squared Error (RMSE)",
+            "Champion (Production)": f"${champ.get('rmse', 0.0):,.2f}" if champ.get("rmse") is not None else "N/A",
+            "Challenger (Candidate)": f"${chall.get('rmse', 0.0):,.2f}",
+            "Improvement (Delta)": f"${chall.get('rmse', 0.0) - champ.get('rmse', 0.0):+,.2f}" if champ.get("rmse") is not None else "N/A"
+        }
+    ]
+
+    st.table(pd.DataFrame(comp_rows))
+else:
+    st.info("No recent completed retraining job evaluation data available.")
+
+st.divider()
+
+# ---------------------------------------------------
+# SECTION G: MODEL PERFORMANCE RECOVERY
+# ---------------------------------------------------
+st.subheader("G. Model Performance Recovery Trend")
+
+if os.path.exists(monitor_log_path):
+    try:
+        with open(monitor_log_path, "r") as f:
+            logs = json.load(f)
+
+        if logs:
+            df_perf = pd.DataFrame(logs)
+            fig_perf = px.line(
+                df_perf,
+                x="batch",
+                y="r2_score",
+                markers=True,
+                color="drift_detected",
+                title="Production Model R² Performance Across Batches (Highlighting Drift & Retraining Recovery)"
+            )
+            fig_perf.update_layout(margin=dict(l=20, r=20, t=40, b=20))
+            st.plotly_chart(fig_perf, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error rendering performance recovery chart: {e}")
+else:
+    st.info("No monitoring history logs found.")
+
+st.divider()
+
+# ---------------------------------------------------
+# SECTION H: SELF-HEALING EVENT TIMELINE
+# ---------------------------------------------------
+st.subheader("H. Self-Healing Event Timeline")
+
+events = JobManager.get_timeline_events()
+if events:
+    df_events = pd.DataFrame(events[::-1])  # Reverse chronological order
+    st.dataframe(df_events[["timestamp", "event_type", "description"]], use_container_width=True)
+else:
+    st.info("No self-healing timeline events recorded yet.")

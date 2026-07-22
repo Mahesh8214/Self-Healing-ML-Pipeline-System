@@ -20,12 +20,10 @@ st.set_page_config(
 st.title("⚙️ Monitoring Control & Operations")
 st.caption("Manual Pipeline Execution, Batch Management & Job Operations Control")
 
-if st.button("Run Monitoring Pipeline"):
-    monitor = MonitoringPipeline()
-    monitor.run_monitoring()
-
-    st.success("Monitoring pipeline executed")
-    st.rerun()
+# ---------------------------------------------------
+# System Control Panel
+# ---------------------------------------------------
+col1, col2 = st.columns(2)
 
 active_job = JobManager.has_active_job()
 settings = JobManager.get_settings()
