@@ -11,6 +11,12 @@
             "model_path": "artifacts\\models\\model_v2.pkl",
             "timestamp": "2026-03-14 00:24:06.150994",
             "reason": "performance_degradation_after_drift"
+        },
+        {
+            "version": "v32",
+            "model_path": "artifacts\\models\\model_v32.pkl",
+            "timestamp": "2026-07-22 23:57:05.024780",
+            "reason": "performance_degradation_after_drift"
         }
     ]
 }

@@ -23,7 +23,7 @@ else:
 
     st.subheader("Drift Summary")
 
-    drift_flag = report.get("drift_report", False)
+    drift_flag = report.get("drift_detected", False)
 
     col1, col2 = st.columns(2)
 
