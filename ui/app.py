@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from src.job_manager import JobManager
 from src.registry.model_registry import ModelRegistry
+from ui.stepper import render_retraining_stepper
 
 st.set_page_config(
     page_title="Self-Healing ML Pipeline",
@@ -98,6 +99,9 @@ with col_btn:
     st.write("###")
     if st.button("▶ Run Monitor Now", type="primary", use_container_width=True):
         st.switch_page("pages/drift_dashboard.py")
+
+if active_job and latest_job:
+    render_retraining_stepper(latest_job)
 
 st.divider()
 

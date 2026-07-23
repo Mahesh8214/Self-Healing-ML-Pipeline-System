@@ -17,6 +17,8 @@ from dataclasses import dataclass
 import sys
 import os
 
+import time
+
 @dataclass 
 class ModelTrainerConfig:
     trained_model_dir = os.path.join('artifacts','models')
@@ -26,8 +28,13 @@ class ModelTrainer:
     def __init__(self):
         self.model_trainer_config = ModelTrainerConfig()
 
-    def initiate_model_training(self,train_array,test_array):
+    def initiate_model_training(self, train_array, test_array, job_id=None):
+        from src.job_manager import JobManager
         try:
+            if job_id:
+                JobManager.update_job_stage(job_id, "Model Training", "RUNNING")
+            time.sleep(0.8)
+
             logging.info('Splitting Dependent and Independent variables from train and test data')
             X_train, y_train, X_test, y_test = (
                 train_array[:,:-1],
@@ -36,14 +43,18 @@ class ModelTrainer:
                 test_array[:,-1]
             )
 
-            models={
-            'LinearRegression':LinearRegression(),
-            'Lasso':Lasso(),
-            'Ridge':Ridge(),
-            'Elasticnet':ElasticNet(),
-            'DecisionTree':DecisionTreeRegressor()
-        }
+            models = {
+                'LinearRegression': LinearRegression(),
+                'Lasso': Lasso(max_iter=1000, random_state=42),
+                'Ridge': Ridge(random_state=42),
+                'Elasticnet': ElasticNet(max_iter=1000, random_state=42),
+                'DecisionTree': DecisionTreeRegressor(max_depth=12, random_state=42)
+            }
             
+            if job_id:
+                JobManager.update_job_stage(job_id, "Model Evaluation", "RUNNING")
+            time.sleep(0.6)
+
             model_report:dict=evaluate_model(X_train,y_train,X_test,y_test,models)
             print(model_report)
             print('\n====================================================================================\n')
@@ -82,6 +93,10 @@ class ModelTrainer:
 
             logging.info(f"Challenger Model ({best_model_name}) Metrics: {challenger_metrics}")
 
+            if job_id:
+                JobManager.update_job_stage(job_id, "Champion vs Challenger", "RUNNING")
+            time.sleep(0.6)
+
             registry = ModelRegistry()
             old_model_path = registry.get_latest_model()
 
@@ -90,7 +105,6 @@ class ModelTrainer:
             promotion_reason = ""
             champion_version = "v0"
 
-            from src.job_manager import JobManager
             settings = JobManager.get_settings()
             min_improvement = settings.get("min_improvement_threshold", 0.001)
 
@@ -117,6 +131,10 @@ class ModelTrainer:
 
                     logging.info(f"Champion Model Metrics: {champion_metrics}")
 
+                    if job_id:
+                        JobManager.update_job_stage(job_id, "Quality Gate", "RUNNING")
+                    time.sleep(0.6)
+
                     # Quality Gate evaluation
                     r2_diff = challenger_r2 - champion_r2
                     if challenger_r2 >= (champion_r2 + min_improvement):
@@ -137,6 +155,10 @@ class ModelTrainer:
                     promotion_reason = "No valid prior Champion model available for comparison; deploying candidate model."
             else:
                 promotion_reason = "Initial production model deployment."
+
+            if job_id:
+                JobManager.update_job_stage(job_id, "Model Promotion", "RUNNING")
+            time.sleep(0.6)
 
             assigned_version = "v1"
             if deploy_new_model:

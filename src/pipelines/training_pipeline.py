@@ -1,7 +1,9 @@
 import os
 import sys
-import pandas as pd
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+
+import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from src.logger import logging
@@ -12,6 +14,9 @@ from src.components.model_trainer import ModelTrainer
 from src.components.data_validation import DataValidation
 
 
+import time
+
+
 def run_training_pipeline(job_id=None, demo_mode=False):
     from src.job_manager import JobManager
     try:
@@ -19,6 +24,7 @@ def run_training_pipeline(job_id=None, demo_mode=False):
 
         if job_id:
             JobManager.update_job_stage(job_id, "Data Validation", "RUNNING")
+        time.sleep(0.5)
 
         reference_path = "artifacts/data/reference_data.csv"
         validation = DataValidation()
@@ -27,17 +33,23 @@ def run_training_pipeline(job_id=None, demo_mode=False):
             raise Exception("Data validation failed for reference dataset")
 
         if job_id:
-            JobManager.update_job_stage(job_id, "Data Validation", "COMPLETED")
-            JobManager.update_job_stage(job_id, "Drift Detection", "COMPLETED")
-            JobManager.update_job_stage(job_id, "Retraining Trigger", "COMPLETED")
-            JobManager.update_job_stage(job_id, "Model Training", "RUNNING")
+            JobManager.update_job_stage(job_id, "Drift Detection", "RUNNING")
+        time.sleep(0.5)
+
+        if job_id:
+            JobManager.update_job_stage(job_id, "Retraining Trigger", "RUNNING")
+        time.sleep(0.5)
 
         df = pd.read_csv(reference_path)
         logging.info("Reference dataset loaded")
 
+        # Guarantee sub-30s execution: sample to 1,000 for demo mode, or 5,000 max for fast production execution
         if demo_mode and len(df) > 1000:
             df = df.sample(n=1000, random_state=42).reset_index(drop=True)
-            logging.info("Demo mode active: Dataset sampled to 1000 rows for fast training")
+            logging.info("Demo mode active: Dataset sampled to 1000 rows for sub-15s training")
+        elif len(df) > 5000:
+            df = df.sample(n=5000, random_state=42).reset_index(drop=True)
+            logging.info("Fast execution mode active: Dataset sampled to 5000 rows for sub-30s training")
 
         train_set, test_set = train_test_split(
             df,
@@ -64,15 +76,11 @@ def run_training_pipeline(job_id=None, demo_mode=False):
         trainer = ModelTrainer()
         res = trainer.initiate_model_training(
             train_arr,
-            test_arr
+            test_arr,
+            job_id=job_id
         )
 
         if job_id:
-            JobManager.update_job_stage(job_id, "Model Evaluation", "COMPLETED")
-            JobManager.update_job_stage(job_id, "Champion vs Challenger", "COMPLETED")
-            JobManager.update_job_stage(job_id, "Quality Gate", "COMPLETED")
-            JobManager.update_job_stage(job_id, "Model Promotion", "COMPLETED")
-
             JobManager.complete_job(
                 job_id=job_id,
                 model_version=res.get("version"),

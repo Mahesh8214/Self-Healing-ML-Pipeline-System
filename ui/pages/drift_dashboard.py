@@ -14,6 +14,7 @@ from src.job_manager import JobManager
 from src.registry.model_registry import ModelRegistry
 from src.pipelines.monitoring_pipeline import MonitoringPipeline
 from src.pipelines.training_pipeline import run_training_pipeline
+from ui.stepper import render_retraining_stepper, inject_stepper_css
 
 st.set_page_config(
     page_title="Drift Monitoring & Self-Healing Center",
@@ -128,6 +129,9 @@ with btn_col3:
     if active_job:
         st.warning(f"🔄 Training Job #{latest_job['job_id']} is running ({latest_job.get('current_stage')}). Auto-refreshing...")
 
+if active_job:
+    render_retraining_stepper(latest_job)
+
 st.divider()
 
 # ---------------------------------------------------
@@ -196,16 +200,21 @@ if os.path.exists(reference_path) and os.path.exists(batch_folder) and batches:
     ref_df = pd.read_csv(reference_path)
     latest_batch_df = pd.read_csv(os.path.join(batch_folder, latest_batch_name))
 
-    # All available features
-    all_features = [col for col in ref_df.columns if col in latest_batch_df.columns and col != "price"]
+    # All available features (excluding target and ID columns)
+    all_features = [col for col in ref_df.columns if col in latest_batch_df.columns and col.lower() not in ["price", "id", "_id", "unnamed: 0"]]
 
     # Prioritize drifted features at top of select list
     drifted_list = report.get("drifted_features", []) if report else []
     ordered_features = [f for f in drifted_list if f in all_features] + [f for f in all_features if f not in drifted_list]
 
+    default_index = 0
+    if "depth" in ordered_features:
+        default_index = ordered_features.index("depth")
+
     selected_feature = st.selectbox(
         "Select Monitored Feature for Distribution Comparison (Drifted Features Prioritized):",
-        options=ordered_features
+        options=ordered_features,
+        index=default_index if ordered_features else 0
     )
 
     if selected_feature:
@@ -276,24 +285,14 @@ else:
     curr_stage = latest_job.get("current_stage")
     stages = latest_job.get("stages", {})
 
+    inject_stepper_css()
     j_col1, j_col2, j_col3, j_col4 = st.columns(4)
     j_col1.metric("Training Job ID", job_id)
     j_col2.metric("Job Status", job_status)
     j_col3.metric("Current Pipeline Stage", curr_stage)
     j_col4.metric("Trigger Reason", latest_job.get("trigger_reason", "manual"))
 
-    st.write("#### ⏳ Stage Progress Stepper")
-    stage_cols = st.columns(len(stages))
-    for idx, (s_name, s_status) in enumerate(stages.items()):
-        with stage_cols[idx]:
-            if s_status == "COMPLETED":
-                st.success(f"✓ {s_name}")
-            elif s_status == "RUNNING":
-                st.warning(f"⏳ {s_name}")
-            elif s_status == "FAILED":
-                st.error(f"❌ {s_name}")
-            else:
-                st.info(f"○ {s_name}")
+    render_retraining_stepper(latest_job)
 
     if latest_job.get("error_message"):
         st.error(f"Job Error Traceback: {latest_job['error_message']}")

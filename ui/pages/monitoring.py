@@ -10,6 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 from src.job_manager import JobManager
 from src.pipelines.monitoring_pipeline import MonitoringPipeline
 from src.pipelines.training_pipeline import run_training_pipeline
+from ui.stepper import render_retraining_stepper
 
 st.set_page_config(
     page_title="Monitoring Control & System Operations",
@@ -26,6 +27,7 @@ st.caption("Manual Pipeline Execution, Batch Management & Job Operations Control
 col1, col2 = st.columns(2)
 
 active_job = JobManager.has_active_job()
+latest_job = JobManager.get_latest_job()
 settings = JobManager.get_settings()
 
 with col1:
@@ -52,6 +54,9 @@ with col2:
             t.start()
             st.success(f"Retraining job #{job['job_id']} queued!")
             st.rerun()
+
+if latest_job and (active_job or latest_job.get("status") in ["RUNNING", "QUEUED"]):
+    render_retraining_stepper(latest_job)
 
 st.divider()
 
