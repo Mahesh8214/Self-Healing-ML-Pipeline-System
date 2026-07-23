@@ -42,7 +42,7 @@ The system demonstrates **production-oriented ML engineering practices** includi
 
 ---
 
-# LIVE **https://mahesh8214-self-healing-ml-pipeline-system-uiapp-440b7r.streamlit.app**
+LIVE : https://mahesh8214-self-healing-ml-pipeline-system-uiapp-440b7r.streamlit.app
 
 # Problem Statement
 
